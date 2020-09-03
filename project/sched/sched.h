@@ -20,18 +20,24 @@ typedef struct task {
 
 void task_init(task_t *, uint64_t, void (*fptr)(void *, int), void *);
 
+typedef enum sched_state {
+	SCHED_STOPPED,	/* Tasks can be posted, but will not be processed. */
+	SCHED_RUNNING,	/* All tasks posted will be immediately processed. */
+	SCHED_DONE	/* Used to tell all workers to exit. */
+} sched_state_t;
+
 typedef struct priority_queue {
 	pthread_cond_t cv;
 	pthread_mutex_t lock;
 	heap_t *heap;
 	int remaining_tasks;
-	bool done;
 } priority_queue_t;
 
 typedef struct sched {
 	priority_queue_t pq;
 	pthread_t *workers;
 	int num_workers;
+	sched_state_t state;
 } sched_t;
 
 bool sched_init(sched_t *, int, int);

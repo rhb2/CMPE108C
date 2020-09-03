@@ -93,7 +93,7 @@ worker_func(void *arg)
 		 * If the heap is empty, and the `done' latch has been set,
 		 * then no more work is coming.  This worker is free to exit.
 		 */
-		if (pq->done && heap_empty(hp)) {
+		if (sp->state == SCHED_DONE && heap_empty(hp)) {
 			(void) pthread_mutex_unlock(&pq->lock);
 			break;
 		}
@@ -103,7 +103,7 @@ worker_func(void *arg)
 		 * more work will eventualy come.  Wait on the cv until we
 		 * receive a signal.
 		 */
-		if (heap_empty(hp))
+		if (heap_empty(hp) || sp->state == SCHED_STOPPED)
 			(void) pthread_cond_wait(&pq->cv, &pq->lock);
 
 		task = get_next_task(hp);
@@ -183,6 +183,8 @@ sched_init(sched_t *sp, int num_workers, int queue_depth)
 		return (false);
 	}
 
+	sp->state = SCHED_STOPPED;
+
 	(void) pthread_mutex_lock(&sp->pq.lock);
 
 	for (i = 0; i < num_workers; i++) {
@@ -219,13 +221,25 @@ sched_post(sched_t *sp, task_t *tp, bool run_now)
 
 	pq->remaining_tasks++;
 
-	if (run_now)
+	if (run_now) {
+		sp->state = SCHED_RUNNING;
 		(void) pthread_cond_signal(&pq->cv);
+	}
 
 	(void) pthread_mutex_unlock(&pq->lock);
 	return (true);
 }
 
+/*
+ * When this function is invoked, it will block the caller until all tasks in
+ * the queue have been execute.  At the conclusion of the last task, it will
+ * set the scheduler to a state of SCHED_STOPPED, ultimately putting all workers
+ * to sleep until more work is posted or until this function is invoked again.
+ * If the task queue gets full, it may be necessary to either call this function
+ * to clear it out in order to make room, _or_ call sched_post() where the
+ * third argument is set to true indicating that the scheduler should get to
+ * work if it isn't already.
+ */
 void
 sched_execute(sched_t *sp)
 {
@@ -235,10 +249,13 @@ sched_execute(sched_t *sp)
 
 	pq = &sp->pq;
 	(void) pthread_mutex_lock(&pq->lock);
+	sp->state = SCHED_RUNNING;
+	(void) pthread_cond_broadcast(&pq->cv);
 
 	while (pq->remaining_tasks > 0)
 		(void) pthread_cond_wait(&pq->cv, &pq->lock);
 
+	sp->state = SCHED_STOPPED;
 	(void) pthread_mutex_unlock(&pq->lock);
 }
 
@@ -254,7 +271,7 @@ sched_fini(sched_t *sp)
 	assert(pq != NULL);
 
 	(void) pthread_mutex_lock(&pq->lock);
-	pq->done = true;
+	sp->state = SCHED_DONE;
 	(void) pthread_cond_broadcast(&pq->cv);
 	(void) pthread_mutex_unlock(&pq->lock);
 
