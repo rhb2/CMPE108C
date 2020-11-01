@@ -61,7 +61,6 @@ void main(int argc, char **argv)
 		exit(1);
 	}
 
-
 	/* Figure out how many entries there are in the portfolio. */
 	bzero(symbol, sizeof (symbol));
 	while (fgets(symbol, MAXNAME, fp) != NULL)
