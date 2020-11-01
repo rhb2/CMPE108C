@@ -49,8 +49,8 @@ hello_func(void *arg, int thread_num)
 	/* Square the value. */
 	result = val * val;
 
-	printf("Hello, I am thread %d.  ", thread_num);
-	printf("I am going to square %d to get %d.\n", *elem, result);
+	printf("Hello, I am thread %d.  I am going to square %d to get %d.\n",
+	    thread_num, *elem, result);
 
 	/* Store the result at the address specified by `elem'. */
 	*elem = result;
