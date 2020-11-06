@@ -13,6 +13,19 @@ typedef struct array_slice {
 } array_slice_t;
 
 void
+print_array(int *array, int len)
+{
+	int i;
+
+	assert(array != NULL);
+
+	for (i = 0; i < len; i++)
+		printf("%d ", array[i]);
+
+	printf("\n");
+}
+
+void
 slice_init(array_slice_t *sp, int *array, int left, int right)
 {
 	sp->array = array;
@@ -40,6 +53,54 @@ swap(int *array, int x, int y)
 	assert(array != NULL);
 
 	array[x] = (array[x] + array[y]) - (array[y] = array[x]);
+}
+
+int
+left_child(int i)
+{
+	return (i * 2 + 1);
+}
+
+void
+heap_sift_down(int *array, int i, int len)
+{
+	int tmp, child;
+
+	for (tmp = array[i]; left_child(i) < len; i = child) {
+		child = left_child(i);
+
+		if (child != len - 1 && array[child] < array[child + 1])
+			child++;
+
+		if (tmp >= array[child])
+			break;
+
+		array[i] = array[child];
+	}
+
+	array[i] = tmp;
+}
+
+void
+heapify(int *array, int len)
+{
+	int i;
+
+	for (i = len / 2; i >= 0; i--)
+		heap_sift_down(array, i, len);
+}
+
+void
+heap_sort(int *array, int len)
+{
+	int i;
+
+	heapify(array, len + 1);
+
+	for (i = len; i > 0; i--) {
+		swap(array, i, 0);
+		heap_sift_down(array, 0, i);
+	}
 }
 
 void
@@ -70,7 +131,8 @@ sort_func(void *arg, int thread_num)
 	assert(arg != NULL);
 
 	sp = arg;
-	quicksort(sp->array, sp->left, sp->right);
+	heap_sort(sp->array + sp->left, sp->right - sp->left);
+//	quicksort(sp->array, sp->left, sp->right);
 }
 
 void
@@ -80,7 +142,11 @@ merge(int *array, int l_pos, int r_pos, int r_end)
 	int elems = r_end - l_pos + 1;
 	int l_end = r_pos - 1;
 	int tmp_pos = 0;
-	int tmp[elems];
+	int *tmp;
+
+	tmp = malloc(sizeof (int) * elems);
+
+	assert(tmp != NULL);
 
 	while (l_pos <= l_end && r_pos <= r_end) {
 		if (array[l_pos] <= array[r_pos])
@@ -97,6 +163,8 @@ merge(int *array, int l_pos, int r_pos, int r_end)
 
 	for (i = 0; i < elems; i++)
 		array[i] = tmp[i];
+
+	free(tmp);
 }
 
 void
@@ -111,16 +179,12 @@ merge_func(void *arg, int thread_num)
 }
 
 void
-print_array(int *array, int len)
+help_check(int *array, int len)
 {
 	int i;
 
-	assert(array != NULL);
-
-	for (i = 0; i < len; i++)
-		printf("%d ", array[i]);
-
-	printf("\n");
+	for (i = 0; i < len - 1; i++)
+		assert(array[i] <= array[i + 1]);
 }
 
 void main(int argc, char **argv)
@@ -128,16 +192,18 @@ void main(int argc, char **argv)
 	int i;
 	int  len;
 	int *array;
+	int threads;
 	array_slice_t slices[2];
 	sched_t sched_sort;
 	task_t tasks[2];
 
-	if (argc == 1) {
-		printf("Mising length of array.\n");
+	if (argc != 3) {
+		printf("Mising length of array or number of threads.\n");
 		exit(-1);
 	}
 
-	len = atoi(argv[1]);
+	threads = atoi(argv[1]);
+	len = atoi(argv[2]);
 	if ((array = malloc(sizeof (int) * len)) == NULL) {
 		printf("Memory allocation failed.\n");
 		exit(-1);
@@ -148,7 +214,7 @@ void main(int argc, char **argv)
 
 	print_array(array, len);
 
-	sched_init(&sched_sort, 2, 2);
+	sched_init(&sched_sort, threads, 2);
 	array_to_slice(array, len, slices);
 
 	for (i = 0; i < 2; i++) {
@@ -162,5 +228,6 @@ void main(int argc, char **argv)
 	sched_execute(&sched_sort);
 	sched_fini(&sched_sort);
 
+	help_check(array, len);
 	print_array(array, len);
 }

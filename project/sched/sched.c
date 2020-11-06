@@ -57,6 +57,14 @@ get_thread_index(sched_t *sp)
 	return (index);
 }
 
+static void
+process_task(task_t *tp, int thread_num)
+{
+	assert(tp != NULL);
+
+	tp->fptr(tp->args, thread_num);
+}
+
 static void *
 worker_func(void *arg)
 {
@@ -117,7 +125,7 @@ worker_func(void *arg)
 		 * loop (above).
 		 */
 		if (task != NULL) {
-			task->fptr(task->args, thread_num);
+			process_task(task, thread_num);
 
 			(void) pthread_mutex_lock(&pq->lock);
 
