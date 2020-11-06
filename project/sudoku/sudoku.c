@@ -30,7 +30,6 @@ validate_rows_func(void *args, int thread_num)
 
 	assert(args != NULL);
 
-	printf("Thread num: %d.\n", thread_num);
 	map->valid = validate_rows(map->matrix);
 }
 
@@ -41,7 +40,6 @@ validate_cols_func(void *args, int thread_num)
 
 	assert(args != NULL);
 
-	printf("Thread num: %d.\n", thread_num);
 	map->valid = validate_cols(map->matrix);
 }
 
@@ -52,7 +50,6 @@ validate_3_by_3_func(void *args, int thread_num)
 
 	assert(args != NULL);
 
-	printf("Thread num: %d.\n", thread_num);
 	map->valid = validate_3_by_3(map->matrix, map->coords.col,
 	    map->coords.row);
 }
@@ -246,9 +243,23 @@ validate_sudoku_map(sched_t *sp, int **matrix)
 	return (true);
 }
 
+void
+matrix_print(int **matrix, int col, int row)
+{
+	int i, j;
+
+	for (j = 0; j < row; j++) {
+		for (i = 0; i < col; i++)
+			printf("%d%s", matrix[i][j],
+			    matrix[i][j] < 10 ? "  " : " ");
+		printf("\n");
+	}
+}
+
 void main(int argc, char **argv)
 {
 	sched_t sched;
+	int threads;
 	int **copy;
 	int valid_sudoku[SUDOKU_COLS][SUDOKU_ROWS] = {
 		{ 6, 5, 8, 1, 9, 7, 3, 4, 2 },
@@ -262,6 +273,13 @@ void main(int argc, char **argv)
 		{ 7, 4, 5, 9, 1, 8, 2, 3, 6 },
 	};
 
+	if (argc != 2) {
+		printf("Number of threads must be specified.\n");
+		exit(-1);
+	}
+
+	threads = atoi(argv[1]);
+
 	/*
 	 * Create a copy of the valid sudoku matrix because we plan to modify it
 	 * after the test and re-test it.
@@ -271,7 +289,9 @@ void main(int argc, char **argv)
 		exit(1);
 	}
 
-	sched_init(&sched, 20, TOTAL_TASKS);
+	matrix_print(copy, 9, 9);
+
+	(void) sched_init(&sched, threads, TOTAL_TASKS);
 
 	if (validate_sudoku_map(&sched, copy))
 		printf("Valid sudoku map.\n");
