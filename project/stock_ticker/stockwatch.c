@@ -43,6 +43,7 @@ void main(int argc, char **argv)
 {
 	int i;
 	int total;
+	int threads;
 	FILE *fp;
 	char *fname;
 	char symbol[20];
@@ -50,12 +51,14 @@ void main(int argc, char **argv)
 	stock_stat_t header;
 	task_t *tasks;
 
-	if (argc == 1) {
+	if (argc != 3) {
 		usage();
 		exit(-1);
 	}
 
 	fname = argv[1];
+	threads = atoi(argv[2]);
+
 	if ((fp = fopen(fname, "r")) == NULL) {
 		printf("Failed to open file: %s\n", fname);
 		exit(1);
@@ -81,9 +84,9 @@ void main(int argc, char **argv)
 	bzero(tasks, sizeof (task_t) * total);
 
 	/* Start the scheduler. */
-	(void) sched_init(&scheduler, total, total);
+	(void) sched_init(&scheduler, threads, total);
 
-	fseek(fp, 0L, SEEK_SET);
+	(void) fseek(fp, 0L, SEEK_SET);
 
 	for (i = 0; fgets(portfolio[i].symbol, MAXNAME, fp) != NULL; i++) {
 		portfolio[i].symbol[strlen(portfolio[i].symbol) - 1] = 0;
