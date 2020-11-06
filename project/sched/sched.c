@@ -134,7 +134,6 @@ worker_func(void *arg)
 
 			(void) pthread_mutex_unlock(&pq->lock);
 		}
-
 	}
 
 	return (NULL);
