@@ -5,7 +5,9 @@
 #include <assert.h>
 #include <sched.h>
 
+#ifdef	PTHREAD_SYNC
 static pthread_mutex_t lock;
+#endif	/* PTHREAD_SYNC */
 
 void
 simple_thread(void *arg, int thread_num)
@@ -19,7 +21,7 @@ simple_thread(void *arg, int thread_num)
 	shared_variable = (int *)arg;
 
 	for (num = 0; num < 20; num++) {
-#ifdef PTHREAD_SYNC
+#ifdef	PTHREAD_SYNC
 		(void) pthread_mutex_lock(&lock);
 #endif	/* PTHREAD_SYNC */
 
@@ -27,7 +29,7 @@ simple_thread(void *arg, int thread_num)
 		printf("*** thread %d sees value %d\n", thread_num, val);
 		*shared_variable = val + 1;
 
-#ifdef PTHREAD_SYNC
+#ifdef	PTHREAD_SYNC
 		(void) pthread_mutex_unlock(&lock);
 #endif
 	}
@@ -70,7 +72,7 @@ int main(int argc, char **argv)
 		exit(-1);
 	}
 
-#ifdef PTHREAD_SYNC
+#ifdef	PTHREAD_SYNC
 	if (pthread_mutex_init(&lock, NULL) != 0) {
 		printf("Mutex initialization failed.\n");
 		exit (-1);
@@ -81,15 +83,17 @@ int main(int argc, char **argv)
 	ret = sched_init(&sched, nthreads, queue_depth);
 
 	/* If we failed to initialize the scheduler, then immediately abort. */
-	assert(ret == true);
+	if (!ret) {
+		printf("Failed to initialize scheduler.\n");
+		exit (-1);
+	}
 
 	for (i = 0; i < nthreads; i++) {
 		/*
 		 * Initialize a task.  Give it a priority of 1, specify that we
-		 * want the task to run `simple_thread' and the address of the
-		 * argument that should be supplied to `simple_thread' is the
-		 * address of element to process is that of `val` which was
-		 * allocated on the stack of main().
+		 * want the task to run `simple_thread()' and the address of the
+		 * argument that should be supplied to it is the address of the
+		 * integer `val` which was allocated on the stack of `main()`.
 		 */
 		task_init(&tasks[i], 1, simple_thread, (void *)&val);
 
